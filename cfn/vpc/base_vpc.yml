@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC / Network
+Parameters:
+  SystemName:
+    Description: Service System Name
+    Type: String
+    Default: system
+  EnvType:
+    Description: Environment type
+    Default: dev
+    AllowedValues:
+    - dev
+    - stg
+    - prod
+
+Mappings:
+  EnvMap:
+    dev:
+      cidr_block: 10.0.0.0/16
+      public_subnet_1a: 10.0.1.0/24
+      public_subnet_1c: 10.0.2.0/24
+      public_subnet_1d: 10.0.3.0/24
+      private_subnet_1a: 10.0.11.0/24
+      private_subnet_1a: 10.0.12.0/24
+      az_1a: ap-northeast-1a
+      az_1c: ap-northeast-1c
+      az_1d: ap-northeast-1d
+    stg:
+      cidr_block: 10.0.0.0/16
+      public_subnet_1a: 10.0.1.0/24
+      public_subnet_1c: 10.0.2.0/24
+      public_subnet_1d: 10.0.3.0/24
+      private_subnet_1a: 10.0.11.0/24
+      private_subnet_1a: 10.0.12.0/24
+      az_1a: ap-northeast-1a
+      az_1c: ap-northeast-1c
+      az_1d: ap-northeast-1d
+    prod:
+      cidr_block: 10.0.0.0/16
+      public_subnet_1a: 10.0.1.0/24
+      public_subnet_1c: 10.0.2.0/24
+      public_subnet_1d: 10.0.3.0/24
+      private_subnet_1a: 10.0.11.0/24
+      private_subnet_1a: 10.0.12.0/24
+      az_1a: ap-northeast-1a
+      az_1c: ap-northeast-1c
+      az_1d: ap-northeast-1d
+
+Resources:
+  ########## VPC ###########################################################
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, cidr_block]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'vpc']]
+
+  ########## Public Subnet #################################################
+  PublicSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [EnvMap, !Ref EnvType, az-1a]
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, public_subnet_1a]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'public-subnet-1a']]
+  PublicSubnet1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [EnvMap, !Ref EnvType, az-c1]
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, public_subnet_1c]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'subnet-public-1c']]
+  PublicSubnet1d:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [EnvMap, !Ref EnvType, az-d1]
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, public_subnet_1d]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'subnet-public-1d']]
+
+  ########## Private Subnet ################################################
+  PrivateSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [EnvMap, !Ref EnvType, az-1a]
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, private_subnet_1a]
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'private-subnet-1a']]
+  PrivateSubnet1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !FindInMap [EnvMap, !Ref EnvType, az-1c]
+      CidrBlock: !FindInMap [EnvMap, !Ref EnvType, private_subnet_1c]
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'private-subnet-1c']]
+
+  ########## Internet Gateway ##############################################
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'igw']]
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ########## Public Route Table ############################################
+  PublicRouteTable1a:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Application
+        Value: !Ref 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'public-rt-1a']]
+  PublicRouteTable1c:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Application
+        Value: !Ref 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'public-rt-1c']]
+  PublicRoute1a:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable1a
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicRoute1c:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable1c
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetRouteTableAssociatio1a:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic1a
+      RouteTableId: !Ref PublicRouteTable1a
+  PublicSubnetRouteTableAssociation1c:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPublic1c
+      RouteTableId: !Ref PublicRouteTable1c
+
+  ########## Private Route Table ###########################################
+  PrivateRouteTable1a:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Application
+        Value: !Ref 'AWS::StackId'
+      - Key: Network
+        Value: Private
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'private-rt-1a']]
+  PrivateRouteTable1c:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Application
+        Value: !Ref 'AWS::StackId'
+      - Key: Network
+        Value: Private
+      - Key: Name
+        Value: !Join ['-', [!Ref SystemName, !Ref EnvType, 'private-rt-1c']]
+  PrivateSubnetRouteTableAssociation1a:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate1a
+      RouteTableId: !Ref PrivateRouteTable1a
+  PrivateSubnetRouteTableAssociation1c:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivate1c
+      RouteTableId: !Ref PrivateRouteTable1c
+
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-VPC"
+  PublicSubnet1aId:
+    Value: !Ref PublicSubnet1a
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PublicSubnet1a"
+  PublicSubnet1cId:
+    Value: !Ref PublicSubnet1c
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PublicSubnet1c"
+  PublicSubnet1dId:
+    Value: !Ref PublicSubnet1d
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PublicSubnet1d"
+  PrivateSubnet1aId:
+    Value: !Ref PrivateSubnet1a
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PrivateSubnet1a"
+  PrivateSubnet1cId:
+    Value: !Ref PrivateSubnet1c
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PrivateSubnet1c"
+  PublicRouteTable1aId:
+    Value: !Ref PublicRouteTable1a
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PublicRouteTable1a"
+  PublicRouteTable1cId:
+    Value: !Ref PublicRouteTable1c
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PublicRouteTable1c"
+  PrivateRouteTable1aId:
+    Value: !Ref PrivateRouteTable1a
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PrivateRouteTable1a"
+  PrivateRouteTable1cId:
+    Value: !Ref PrivateRouteTable1c
+    Export:
+      Name: !Sub "${SystemName}-${EnvType}-PrivateRouteTable1c"
